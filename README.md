@@ -8,11 +8,11 @@
 
 ## ✨ Features
 
-- 🔒 **Safe & Secure** - Automatic backups, never lose your original config
+- 🔒 **Safe & Secure** - Automatic backup of original config
 - 🚀 **One-Line Install** - Install with a single curl command
 - 🔄 **Easy Switching** - Switch between accounts in seconds
+- 🔗 **Auto-Sync** - Profiles utilize symlinks so tokens stay fresh automatically
 - 📦 **Profile Management** - Save unlimited account profiles
-- 💾 **Timestamped Backups** - Every switch creates a backup
 - 🎨 **Beautiful CLI** - Color-coded output for better UX
 
 ---
@@ -33,24 +33,27 @@ This will install `claude-switch` to `~/.local/bin/` and make it available syste
 
 ### Setup Your Accounts
 
+### Setup Your Accounts
+
+The easiest way to set up profiles is using the interactive `new` command:
+
 ```bash
-# 1. Save your current account (e.g., Anthropic)
-claude-switch save anthropic
+# 1. Create your first profile (e.g., Anthropic)
+csw new anthropic
+# Follow the interactive prompts to log in
 
-# 2. Configure Claude for your second account
-# Edit ~/.claude/settings.json with your z.ai credentials
-
-# 3. Save your second account
-claude-switch save z.ai
+# 2. Create your second profile (e.g., z.ai)
+csw new z.ai
+# Follow the interactive prompts to set your API key
 ```
 
 ### Switch Between Accounts
 
 ```bash
-claude-switch switch anthropic  # Use Anthropic
-claude-switch switch z.ai       # Use z.ai
-claude-switch current           # Check active account
-claude-switch list              # List all accounts
+csw use anthropic     # Use Anthropic
+csw use z.ai          # Use z.ai
+csw current           # Check active account
+csw list              # List all accounts
 ```
 
 ---
@@ -59,12 +62,13 @@ claude-switch list              # List all accounts
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `save <name>` | Save current config as profile | `claude-switch save anthropic` |
-| `switch <name>` | Switch to a profile | `claude-switch switch z.ai` |
-| `list` | List all profiles | `claude-switch list` |
-| `current` | Show active profile | `claude-switch current` |
-| `delete <name>` | Delete a profile | `claude-switch delete old-account` |
-| `help` | Show help message | `claude-switch help` |
+| `new [name]` | Create a new profile interactively | `csw new anthropic` |
+| `save <name>` | Save current config as profile | `csw save anthropic` |
+| `use <name>` | Use a different profile | `csw use z.ai` |
+| `list` | List all profiles | `csw list` |
+| `current` | Show active profile | `csw current` |
+| `delete <name>` | Delete a profile | `csw delete old-account` |
+| `help` | Show help message | `csw help` |
 
 ---
 
@@ -81,83 +85,53 @@ When you run the script for the first time, it will:
 **Your original configuration is always safe and never overwritten!**
 
 > **Note**: The script handles both:
-> - `~/.claude.json` - Authentication tokens (from `claude auth`)
+> - `~/.claude.json` - Authentication tokens (from `claude` -> `/login`)
 > - `~/.claude/settings.json` - Environment variables and model settings
 
 ### Configuring Multiple Accounts
 
+### Configuring Multiple Accounts
+
+Use the `new` command for a guided setup:
+
 #### Example: Anthropic Account
 
-Your current settings might look like this:
-
-```json
-{
-  "env": {
-    "ANTHROPIC_AUTH_TOKEN": "your-anthropic-token",
-    "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
-    "API_TIMEOUT_MS": "3000000",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-3-haiku-20240307",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-3-5-sonnet-20241022",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-3-opus-20240229"
-  },
-  "model": "opus"
-}
-```
-
-Save this as a profile:
 ```bash
-claude-switch save anthropic
+csw new anthropic
 ```
+
+Select "OAuth" when prompted, then follow the instructions to:
+1. Run `claude` to open the interface
+2. Use the `/login` command
+3. Save the profile
 
 #### Example: z.ai Account
 
-Edit `~/.claude/settings.json` for your z.ai account:
-
 ```bash
-nano ~/.claude/settings.json
-# or
-code ~/.claude/settings.json
+csw new z.ai
 ```
 
-Update with your z.ai credentials:
-
-```json
-{
-  "env": {
-    "ANTHROPIC_AUTH_TOKEN": "your-z-ai-token",
-    "ANTHROPIC_BASE_URL": "https://z.ai/api/v1",
-    "API_TIMEOUT_MS": "3000000",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-3-haiku-20240307",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-3-5-sonnet-20241022",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-3-opus-20240229"
-  },
-  "model": "sonnet"
-}
-```
-
-Save this as a profile:
-```bash
-claude-switch save z.ai
-```
+Select "API Key" when prompted, then follow the instructions to:
+1. Get your API key
+2. Create `~/.claude/settings.json`
+3. Save the profile
 
 ### Complete Workflow Example
 
 ```bash
-# Save current account
-claude-switch save anthropic
-
-# Configure for second account, then save
-claude-switch save z.ai
+# Create profiles interactively
+csw new anthropic
+csw new z.ai
 
 # Switch between accounts anytime
-claude-switch switch anthropic
-claude-switch switch z.ai
+csw use anthropic
+csw use z.ai
 
 # Check which account is active
-claude-switch current
+csw current
 
 # List all your accounts
-claude-switch list
+csw list
 ```
 
 ---
@@ -208,17 +182,15 @@ mv claude-switch ~/.local/bin/
   - `~/.claude/backups/original-auth.json` (authentication)
   - `~/.claude/backups/original-settings.json` (environment settings, if exists)
 
-✅ **Timestamped Backups** - Every switch creates:
-  - `auth-YYYYMMDD_HHMMSS.json`
-  - `settings-YYYYMMDD_HHMMSS.json`
+
 
 ✅ **Confirmation Prompts** - Asks before overwriting or deleting profiles  
 ✅ **Separate Storage** - Profiles stored in `~/.claude/profiles/<profile-name>/`  
 
 ### File Locations
 
-- **Active Auth**: `~/.claude.json`
-- **Active Settings**: `~/.claude/settings.json`
+- **Active Auth**: `~/.claude.json` (symlink to active profile)
+- **Active Settings**: `~/.claude/settings.json` (symlink or missing)
 - **Profiles**: `~/.claude/profiles/<profile-name>/`
   - `auth.json` - Authentication tokens
   - `settings.json` - Environment variables (optional)
@@ -242,15 +214,16 @@ cp ~/.claude/backups/original-settings.json ~/.claude/settings.json
 
 For even quicker access:
 
+The installer automatically adds the `csw` alias:
+
 ```bash
-# Add to ~/.zshrc or ~/.bashrc
-echo 'alias cs="claude-switch"' >> ~/.zshrc
-source ~/.zshrc
+# Added automatically to your shell config:
+alias csw="claude-switch"
 
 # Now you can use:
-cs switch z.ai
-cs list
-cs current
+csw use z.ai
+csw list
+csw current
 ```
 
 ### Install jq for Better Output
@@ -299,7 +272,7 @@ source ~/.bashrc
 Or create an alias:
 
 ```bash
-echo 'alias claude-switch="~/.local/bin/claude-switch"' >> ~/.zshrc
+echo 'alias csw="~/.local/bin/claude-switch"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
@@ -325,6 +298,30 @@ Verify file permissions:
 ls -la ~/.claude/settings.json
 # Should show: -rw-r--r--
 ```
+
+### Still Being Asked to Login After Switching to API Key Profile
+
+If you're still being prompted to log in after switching to an API key profile (like z.ai):
+
+1. **Delete and recreate the profile** - This ensures a clean setup:
+   ```bash
+   csw delete z.ai
+   csw new z.ai
+   ```
+
+2. **Verify the profile is active**:
+   ```bash
+   csw current
+   # Should show your API key profile
+   ```
+
+3. **Check settings.json is symlinked correctly**:
+   ```bash
+   ls -la ~/.claude/settings.json
+   # Should show a symlink to the profile's settings.json
+   ```
+
+The script now automatically creates a minimal `auth.json` for API key profiles to prevent Claude CLI from attempting OAuth authentication.
 
 ---
 

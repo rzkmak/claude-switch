@@ -118,19 +118,63 @@ install_script() {
     fi
 }
 
-# Check if install directory is in PATH
-check_path() {
+# Configure shell environment (PATH and Alias)
+setup_shell_env() {
+    local shell_rc=""
+    local user_shell=$(basename "$SHELL")
+    
+    if [[ "$user_shell" == "zsh" ]]; then
+        shell_rc="$HOME/.zshrc"
+    elif [[ "$user_shell" == "bash" ]]; then
+        shell_rc="$HOME/.bashrc"
+    else
+        log_warning "Unsupported shell: $user_shell. Manual configuration required."
+        return
+    fi
+    
+    if [[ ! -f "$shell_rc" ]]; then
+        touch "$shell_rc"
+    fi
+    
+    # 1. PATH setup
     if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-        log_warning "Installation directory is not in your PATH"
-        echo ""
-        echo "Add this to your shell profile (~/.zshrc or ~/.bashrc):"
-        echo ""
-        echo "  export PATH=\"\$PATH:$INSTALL_DIR\""
-        echo ""
-        echo "Or create an alias:"
-        echo ""
-        echo "  alias claude-switch=\"$INSTALL_DIR/$SCRIPT_NAME\""
-        echo ""
+        if ! grep -q "export PATH=.*$INSTALL_DIR" "$shell_rc"; then
+            log_info "Adding $INSTALL_DIR to PATH in $shell_rc..."
+            echo "" >> "$shell_rc"
+            echo "# Claude Account Switcher" >> "$shell_rc"
+            echo "export PATH=\"\$PATH:$INSTALL_DIR\"" >> "$shell_rc"
+        fi
+    fi
+    
+    # 2. Alias setup (csw)
+    # Remove old function-based csw if exists
+    if grep -q "csw() {" "$shell_rc"; then
+        log_info "Removing old 'csw' function from $shell_rc..."
+        # Create backup
+        cp "$shell_rc" "$shell_rc.bak"
+        # Remove the function block (from csw() { to the closing })
+        sed '/^# Claude Account Switcher Function$/,/^}$/d' "$shell_rc.bak" > "$shell_rc"
+    fi
+
+    # Add alias if not exists
+    if ! grep -q "alias csw=" "$shell_rc"; then
+        log_info "Adding 'csw' alias to $shell_rc..."
+        echo "" >> "$shell_rc"
+        echo "# Claude Account Switcher" >> "$shell_rc"
+        echo "alias csw='claude-switch'" >> "$shell_rc"
+    fi
+    
+    log_success "Shell configuration updated."
+    echo "To use 'csw' immediately, run:"
+    echo ""
+    echo "  source $shell_rc"
+    echo ""
+}
+
+# Check installations
+check_install() {
+    if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
+        log_warning "Installation directory is not currently in PATH"
     else
         log_success "Installation directory is in PATH"
     fi
@@ -154,23 +198,26 @@ show_next_steps() {
     echo "Quick Start:"
     echo ""
     echo "  1. Save your current account:"
-    echo "     $SCRIPT_NAME save anthropic"
+    echo "     csw save anthropic"
     echo ""
     echo "  2. Login to your second account:"
-    echo "     claude auth"
+    echo "     claude"
+    echo "     > /login"
     echo ""
     echo "  3. Save your second account:"
-    echo "     $SCRIPT_NAME save z.ai"
+    echo "     csw save z.ai"
     echo ""
     echo "  4. Switch between accounts:"
-    echo "     $SCRIPT_NAME switch anthropic"
-    echo "     $SCRIPT_NAME switch z.ai"
+    echo "     csw use anthropic"
+    echo "     csw use z.ai"
     echo ""
     echo "For help:"
-    echo "  $SCRIPT_NAME help"
+    echo "  csw help"
     echo ""
     echo "Documentation:"
     echo "  https://github.com/rzkmak/claude-switch"
+    echo ""
+    echo "Note: 'csw' is an alias for 'claude-switch'"
     echo ""
 }
 
@@ -186,7 +233,8 @@ main() {
     check_prerequisites
     setup_install_dir
     install_script
-    check_path
+    setup_shell_env
+    check_install
     show_next_steps
 }
 
