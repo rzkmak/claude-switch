@@ -4,6 +4,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+> **⚠️ Platform Compatibility**: This tool is currently tested on macOS only. The keychain integration feature (for OAuth credential management) is macOS-specific and may not work on Windows or Linux. We welcome contributions from the community to add support for other platforms!
+
 ---
 
 ## ✨ Features
