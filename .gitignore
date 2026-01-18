@@ -1,8 +1,9 @@
 # Ignore any local test profiles
 test-*.json
 
-# Ignore local test installer
+# Ignore local test scripts
 install-local.sh
+uninstall-test.sh
 
 # Ignore editor files
 .vscode/

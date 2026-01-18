@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Claude Account Switcher - Self-Installing Script
-# Usage: curl -fsSL https://raw.githubusercontent.com/rzkmak/claude-account-switch/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/rzkmak/claude-switch/main/install.sh | bash
 
 set -euo pipefail
 
@@ -15,7 +15,8 @@ NC='\033[0m'
 # Configuration
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 SCRIPT_NAME="claude-switch"
-REPO_URL="https://raw.githubusercontent.com/rzkmak/claude-account-switch/main"
+REPO_URL="https://raw.githubusercontent.com/rzkmak/claude-switch/main"
+VERSION_URL="$REPO_URL/VERSION"
 
 # Helper functions
 log_info() {
@@ -32,6 +33,44 @@ log_warning() {
 
 log_error() {
     echo -e "${RED}✗${NC} $1"
+}
+
+# Get installed version
+get_installed_version() {
+    if [[ -f "$INSTALL_DIR/$SCRIPT_NAME" ]]; then
+        # Try to extract version from script
+        grep -m1 "^# Version:" "$INSTALL_DIR/$SCRIPT_NAME" 2>/dev/null | cut -d: -f2 | xargs || echo "unknown"
+    else
+        echo "none"
+    fi
+}
+
+# Check if already installed
+check_existing_installation() {
+    if [[ -f "$INSTALL_DIR/$SCRIPT_NAME" ]]; then
+        local installed_version=$(get_installed_version)
+        log_warning "Claude Account Switcher is already installed"
+        echo ""
+        echo "  Installed version: $installed_version"
+        echo "  Location: $INSTALL_DIR/$SCRIPT_NAME"
+        echo ""
+        
+        # Non-interactive mode - always upgrade
+        if [[ ! -t 0 ]]; then
+            log_info "Running in non-interactive mode, upgrading..."
+            return 0
+        fi
+        
+        read -p "Do you want to upgrade/reinstall? (y/n): " -n 1 -r
+        echo ""
+        
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Installation cancelled"
+            exit 0
+        fi
+        
+        log_info "Upgrading installation..."
+    fi
 }
 
 # Check prerequisites
@@ -99,18 +138,26 @@ check_path() {
 
 # Show next steps
 show_next_steps() {
+    local installed_version=$(get_installed_version)
+    
     echo ""
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}Installation Complete!${NC}"
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
+    
+    if [[ "$installed_version" != "none" && "$installed_version" != "unknown" ]]; then
+        echo "Version: $installed_version"
+        echo ""
+    fi
+    
     echo "Quick Start:"
     echo ""
     echo "  1. Save your current account:"
     echo "     $SCRIPT_NAME save anthropic"
     echo ""
-    echo "  2. Configure Claude for your second account"
-    echo "     (edit ~/.claude/settings.json)"
+    echo "  2. Login to your second account:"
+    echo "     claude auth"
     echo ""
     echo "  3. Save your second account:"
     echo "     $SCRIPT_NAME save z.ai"
@@ -123,7 +170,7 @@ show_next_steps() {
     echo "  $SCRIPT_NAME help"
     echo ""
     echo "Documentation:"
-    echo "  https://github.com/rzkmak/claude-account-switch"
+    echo "  https://github.com/rzkmak/claude-switch"
     echo ""
 }
 
@@ -135,6 +182,7 @@ main() {
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     
+    check_existing_installation
     check_prerequisites
     setup_install_dir
     install_script
@@ -143,3 +191,4 @@ main() {
 }
 
 main "$@"
+

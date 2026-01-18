@@ -2,11 +2,13 @@
 
 # Claude Account Switcher
 # Safely switch between multiple Claude CLI accounts
+# Version: 1.0.0
 
 set -euo pipefail
 
 # Configuration
 CLAUDE_DIR="$HOME/.claude"
+CLAUDE_AUTH="$HOME/.claude.json"
 CLAUDE_SETTINGS="$CLAUDE_DIR/settings.json"
 PROFILES_DIR="$CLAUDE_DIR/profiles"
 BACKUP_DIR="$CLAUDE_DIR/backups"
@@ -51,24 +53,31 @@ init_profiles() {
 
 # First-time setup: backup current configuration
 first_time_setup() {
-    local original_backup="$BACKUP_DIR/original-settings.json"
+    local original_auth_backup="$BACKUP_DIR/original-auth.json"
+    local original_settings_backup="$BACKUP_DIR/original-settings.json"
     
-    if [[ -f "$original_backup" ]]; then
+    if [[ -f "$original_auth_backup" ]]; then
         log_info "Original configuration already backed up."
         return 0
     fi
     
-    if [[ ! -f "$CLAUDE_SETTINGS" ]]; then
-        log_error "No existing Claude settings found at $CLAUDE_SETTINGS"
-        log_error "Please run 'claude' at least once to initialize the configuration."
+    if [[ ! -f "$CLAUDE_AUTH" ]]; then
+        log_error "No existing Claude auth found at $CLAUDE_AUTH"
+        log_error "Please run 'claude auth' at least once to initialize."
         exit 1
     fi
     
     log_warning "First-time setup detected!"
     log_info "Backing up your original Claude configuration..."
     
-    cp "$CLAUDE_SETTINGS" "$original_backup"
-    log_success "Original configuration backed up to: $original_backup"
+    # Backup both auth and settings
+    cp "$CLAUDE_AUTH" "$original_auth_backup"
+    log_success "Original auth backed up to: $original_auth_backup"
+    
+    if [[ -f "$CLAUDE_SETTINGS" ]]; then
+        cp "$CLAUDE_SETTINGS" "$original_settings_backup"
+        log_success "Original settings backed up to: $original_settings_backup"
+    fi
     
     echo ""
     read -p "Would you like to save this as a profile? (y/n): " -n 1 -r
@@ -77,7 +86,11 @@ first_time_setup() {
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         read -p "Enter profile name (e.g., 'anthropic', 'z.ai'): " profile_name
         if [[ -n "$profile_name" ]]; then
-            cp "$CLAUDE_SETTINGS" "$PROFILES_DIR/${profile_name}.json"
+            mkdir -p "$PROFILES_DIR/${profile_name}"
+            cp "$CLAUDE_AUTH" "$PROFILES_DIR/${profile_name}/auth.json"
+            if [[ -f "$CLAUDE_SETTINGS" ]]; then
+                cp "$CLAUDE_SETTINGS" "$PROFILES_DIR/${profile_name}/settings.json"
+            fi
             log_success "Current configuration saved as profile: $profile_name"
         fi
     fi
@@ -96,9 +109,9 @@ list_profiles() {
     
     local current_profile=$(get_current_profile)
     
-    for profile in "$PROFILES_DIR"/*.json; do
-        if [[ -f "$profile" ]]; then
-            local name=$(basename "$profile" .json)
+    for profile_dir in "$PROFILES_DIR"/*; do
+        if [[ -d "$profile_dir" ]]; then
+            local name=$(basename "$profile_dir")
             local marker=""
             
             if [[ "$name" == "$current_profile" ]]; then
@@ -108,11 +121,16 @@ list_profiles() {
             echo -e "  • $name$marker"
             
             # Show some details from the profile
-            if command -v jq &> /dev/null; then
-                local base_url=$(jq -r '.env.ANTHROPIC_BASE_URL // "not set"' "$profile" 2>/dev/null)
-                local model=$(jq -r '.model // "not set"' "$profile" 2>/dev/null)
-                echo -e "    ${BLUE}URL:${NC} $base_url"
-                echo -e "    ${BLUE}Model:${NC} $model"
+            if command -v jq &> /dev/null && [[ -f "$profile_dir/auth.json" ]]; then
+                local email=$(jq -r '.oauthAccount.email // "API Key"' "$profile_dir/auth.json" 2>/dev/null)
+                echo -e "    ${BLUE}Account:${NC} $email"
+                
+                if [[ -f "$profile_dir/settings.json" ]]; then
+                    local base_url=$(jq -r '.env.ANTHROPIC_BASE_URL // "not set"' "$profile_dir/settings.json" 2>/dev/null)
+                    local model=$(jq -r '.model // "default"' "$profile_dir/settings.json" 2>/dev/null)
+                    echo -e "    ${BLUE}URL:${NC} $base_url"
+                    echo -e "    ${BLUE}Model:${NC} $model"
+                fi
             fi
             echo ""
         fi
@@ -121,18 +139,18 @@ list_profiles() {
 
 # Get current active profile
 get_current_profile() {
-    if [[ ! -f "$CLAUDE_SETTINGS" ]]; then
+    if [[ ! -f "$CLAUDE_AUTH" ]]; then
         echo "none"
         return
     fi
     
-    local current_hash=$(md5 -q "$CLAUDE_SETTINGS" 2>/dev/null || md5sum "$CLAUDE_SETTINGS" | cut -d' ' -f1)
+    local current_hash=$(md5 -q "$CLAUDE_AUTH" 2>/dev/null || md5sum "$CLAUDE_AUTH" | cut -d' ' -f1)
     
-    for profile in "$PROFILES_DIR"/*.json; do
-        if [[ -f "$profile" ]]; then
-            local profile_hash=$(md5 -q "$profile" 2>/dev/null || md5sum "$profile" | cut -d' ' -f1)
+    for profile_dir in "$PROFILES_DIR"/*; do
+        if [[ -d "$profile_dir" && -f "$profile_dir/auth.json" ]]; then
+            local profile_hash=$(md5 -q "$profile_dir/auth.json" 2>/dev/null || md5sum "$profile_dir/auth.json" | cut -d' ' -f1)
             if [[ "$current_hash" == "$profile_hash" ]]; then
-                basename "$profile" .json
+                basename "$profile_dir"
                 return
             fi
         fi
@@ -151,14 +169,14 @@ save_profile() {
         exit 1
     fi
     
-    if [[ ! -f "$CLAUDE_SETTINGS" ]]; then
-        log_error "No Claude settings found at $CLAUDE_SETTINGS"
+    if [[ ! -f "$CLAUDE_AUTH" ]]; then
+        log_error "No Claude auth found at $CLAUDE_AUTH"
         exit 1
     fi
     
-    local profile_path="$PROFILES_DIR/${profile_name}.json"
+    local profile_dir="$PROFILES_DIR/${profile_name}"
     
-    if [[ -f "$profile_path" ]]; then
+    if [[ -d "$profile_dir" ]]; then
         log_warning "Profile '$profile_name' already exists."
         read -p "Overwrite? (y/n): " -n 1 -r
         echo ""
@@ -168,7 +186,11 @@ save_profile() {
         fi
     fi
     
-    cp "$CLAUDE_SETTINGS" "$profile_path"
+    mkdir -p "$profile_dir"
+    cp "$CLAUDE_AUTH" "$profile_dir/auth.json"
+    if [[ -f "$CLAUDE_SETTINGS" ]]; then
+        cp "$CLAUDE_SETTINGS" "$profile_dir/settings.json"
+    fi
     log_success "Profile '$profile_name' saved successfully!"
 }
 
@@ -182,9 +204,9 @@ switch_profile() {
         exit 1
     fi
     
-    local profile_path="$PROFILES_DIR/${profile_name}.json"
+    local profile_dir="$PROFILES_DIR/${profile_name}"
     
-    if [[ ! -f "$profile_path" ]]; then
+    if [[ ! -d "$profile_dir" ]]; then
         log_error "Profile '$profile_name' not found"
         log_info "Available profiles:"
         list_profiles
@@ -193,15 +215,24 @@ switch_profile() {
     
     # Create backup before switching
     local timestamp=$(date +%Y%m%d_%H%M%S)
-    local backup_path="$BACKUP_DIR/settings-${timestamp}.json"
+    local backup_auth="$BACKUP_DIR/auth-${timestamp}.json"
+    local backup_settings="$BACKUP_DIR/settings-${timestamp}.json"
+    
+    if [[ -f "$CLAUDE_AUTH" ]]; then
+        cp "$CLAUDE_AUTH" "$backup_auth"
+        log_info "Current auth backed up to: $backup_auth"
+    fi
     
     if [[ -f "$CLAUDE_SETTINGS" ]]; then
-        cp "$CLAUDE_SETTINGS" "$backup_path"
-        log_info "Current settings backed up to: $backup_path"
+        cp "$CLAUDE_SETTINGS" "$backup_settings"
+        log_info "Current settings backed up to: $backup_settings"
     fi
     
     # Switch to new profile
-    cp "$profile_path" "$CLAUDE_SETTINGS"
+    cp "$profile_dir/auth.json" "$CLAUDE_AUTH"
+    if [[ -f "$profile_dir/settings.json" ]]; then
+        cp "$profile_dir/settings.json" "$CLAUDE_SETTINGS"
+    fi
     log_success "Switched to profile: $profile_name"
     
     # Show current configuration
@@ -209,11 +240,12 @@ switch_profile() {
     log_info "Current configuration:"
     if command -v jq &> /dev/null; then
         echo ""
-        jq -r '.env | to_entries[] | "  \(.key): \(.value)"' "$CLAUDE_SETTINGS"
-        echo ""
-        echo -e "  ${BLUE}Model:${NC} $(jq -r '.model' "$CLAUDE_SETTINGS")"
-    else
-        cat "$CLAUDE_SETTINGS"
+        echo -e "  ${BLUE}Account:${NC} $(jq -r '.oauthAccount.email // "API Key"' "$CLAUDE_AUTH" 2>/dev/null)"
+        if [[ -f "$CLAUDE_SETTINGS" ]]; then
+            jq -r '.env | to_entries[] | "  \(.key): \(.value)"' "$CLAUDE_SETTINGS" 2>/dev/null
+            echo ""
+            echo -e "  ${BLUE}Model:${NC} $(jq -r '.model // "default"' "$CLAUDE_SETTINGS" 2>/dev/null)"
+        fi
     fi
 }
 
@@ -227,9 +259,9 @@ delete_profile() {
         exit 1
     fi
     
-    local profile_path="$PROFILES_DIR/${profile_name}.json"
+    local profile_dir="$PROFILES_DIR/${profile_name}"
     
-    if [[ ! -f "$profile_path" ]]; then
+    if [[ ! -d "$profile_dir" ]]; then
         log_error "Profile '$profile_name' not found"
         exit 1
     fi
@@ -239,7 +271,7 @@ delete_profile() {
     echo ""
     
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        rm "$profile_path"
+        rm -rf "$profile_dir"
         log_success "Profile '$profile_name' deleted"
     else
         log_info "Cancelled"
@@ -252,14 +284,19 @@ show_current() {
     echo ""
     log_info "Current profile: $current"
     
-    if [[ -f "$CLAUDE_SETTINGS" ]]; then
+    if [[ -f "$CLAUDE_AUTH" ]]; then
         echo ""
         if command -v jq &> /dev/null; then
-            jq -r '.env | to_entries[] | "  \(.key): \(.value)"' "$CLAUDE_SETTINGS"
-            echo ""
-            echo -e "  ${BLUE}Model:${NC} $(jq -r '.model' "$CLAUDE_SETTINGS")"
+            echo -e "  ${BLUE}Account:${NC} $(jq -r '.oauthAccount.email // "API Key"' "$CLAUDE_AUTH" 2>/dev/null)"
+            
+            if [[ -f "$CLAUDE_SETTINGS" ]]; then
+                echo ""
+                jq -r '.env | to_entries[] | "  \(.key): \(.value)"' "$CLAUDE_SETTINGS" 2>/dev/null
+                echo ""
+                echo -e "  ${BLUE}Model:${NC} $(jq -r '.model // "default"' "$CLAUDE_SETTINGS" 2>/dev/null)"
+            fi
         else
-            cat "$CLAUDE_SETTINGS"
+            cat "$CLAUDE_AUTH"
         fi
     fi
     echo ""

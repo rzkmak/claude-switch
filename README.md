@@ -24,10 +24,12 @@
 Install with a single command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rzkmak/claude-account-switch/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rzkmak/claude-switch/main/install.sh | bash
 ```
 
 This will install `claude-switch` to `~/.local/bin/` and make it available system-wide.
+
+> **💡 Tip**: To upgrade to the latest version, simply run the same command again!
 
 ### Setup Your Accounts
 
@@ -71,11 +73,16 @@ claude-switch list              # List all accounts
 ### First-Time Setup
 
 When you run the script for the first time, it will:
-1. Automatically back up your current configuration to `~/.claude/backups/original-settings.json`
-2. Ask if you want to save it as a profile
-3. Create the necessary directories
+1. Automatically back up your current authentication to `~/.claude/backups/original-auth.json`
+2. Automatically back up your environment settings to `~/.claude/backups/original-settings.json` (if exists)
+3. Ask if you want to save it as a profile
+4. Create the necessary directories
 
 **Your original configuration is always safe and never overwritten!**
+
+> **Note**: The script handles both:
+> - `~/.claude.json` - Authentication tokens (from `claude auth`)
+> - `~/.claude/settings.json` - Environment variables and model settings
 
 ### Configuring Multiple Accounts
 
@@ -160,21 +167,21 @@ claude-switch list
 ### Quick Install (Recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rzkmak/claude-account-switch/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rzkmak/claude-switch/main/install.sh | bash
 ```
 
 ### Custom Installation Directory
 
 ```bash
-INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/rzkmak/claude-account-switch/main/install.sh | bash
+INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/rzkmak/claude-switch/main/install.sh | bash
 ```
 
 ### Manual Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/rzkmak/claude-account-switch.git
-cd claude-account-switch
+git clone https://github.com/rzkmak/claude-switch.git
+cd claude-switch
 
 # Make executable
 chmod +x claude-switch.sh
@@ -186,7 +193,7 @@ cp claude-switch.sh ~/.local/bin/claude-switch
 ### Download Single File
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rzkmak/claude-account-switch/main/claude-switch.sh -o claude-switch
+curl -fsSL https://raw.githubusercontent.com/rzkmak/claude-switch/main/claude-switch.sh -o claude-switch
 chmod +x claude-switch
 mv claude-switch ~/.local/bin/
 ```
@@ -197,21 +204,33 @@ mv claude-switch ~/.local/bin/
 
 ### Automatic Backups
 
-✅ **Original Backup** - First run creates `~/.claude/backups/original-settings.json`  
-✅ **Timestamped Backups** - Every switch creates `settings-YYYYMMDD_HHMMSS.json`  
+✅ **Original Backup** - First run creates:
+  - `~/.claude/backups/original-auth.json` (authentication)
+  - `~/.claude/backups/original-settings.json` (environment settings, if exists)
+
+✅ **Timestamped Backups** - Every switch creates:
+  - `auth-YYYYMMDD_HHMMSS.json`
+  - `settings-YYYYMMDD_HHMMSS.json`
+
 ✅ **Confirmation Prompts** - Asks before overwriting or deleting profiles  
-✅ **Separate Storage** - Profiles stored in `~/.claude/profiles/`  
+✅ **Separate Storage** - Profiles stored in `~/.claude/profiles/<profile-name>/`  
 
 ### File Locations
 
-- **Active Config**: `~/.claude/settings.json`
-- **Profiles**: `~/.claude/profiles/`
+- **Active Auth**: `~/.claude.json`
+- **Active Settings**: `~/.claude/settings.json`
+- **Profiles**: `~/.claude/profiles/<profile-name>/`
+  - `auth.json` - Authentication tokens
+  - `settings.json` - Environment variables (optional)
 - **Backups**: `~/.claude/backups/`
-- **Original Backup**: `~/.claude/backups/original-settings.json`
 
 ### Restore Original Configuration
 
 ```bash
+# Restore authentication
+cp ~/.claude/backups/original-auth.json ~/.claude.json
+
+# Restore settings (if exists)
 cp ~/.claude/backups/original-settings.json ~/.claude/settings.json
 ```
 
@@ -320,6 +339,19 @@ ls -la ~/.claude/settings.json
 
 ## 🗑️ Uninstallation
 
+### Quick Uninstall
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rzkmak/claude-switch/main/uninstall.sh | bash
+```
+
+This will:
+- Remove the `claude-switch` script
+- Ask if you want to keep or remove profiles and backups
+- Never touch your active Claude configuration (`~/.claude.json`)
+
+### Manual Uninstallation
+
 ```bash
 # Remove the script
 rm ~/.local/bin/claude-switch
@@ -329,7 +361,17 @@ rm -rf ~/.claude/profiles
 rm -rf ~/.claude/backups
 ```
 
-Your original Claude configuration at `~/.claude/settings.json` remains untouched.
+### Non-Interactive Uninstall
+
+```bash
+# Keep profiles and backups (default)
+curl -fsSL https://raw.githubusercontent.com/rzkmak/claude-switch/main/uninstall.sh | bash
+
+# Remove everything including profiles and backups
+curl -fsSL https://raw.githubusercontent.com/rzkmak/claude-switch/main/uninstall.sh | KEEP_DATA=false bash
+```
+
+Your active Claude configuration at `~/.claude.json` and `~/.claude/settings.json` remains untouched.
 
 ---
 
