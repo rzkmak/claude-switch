@@ -385,6 +385,36 @@ Perfect for:
 
 ---
 
+## 🧪 Testing
+
+The project includes a comprehensive unit test suite to ensure the script works correctly.
+
+### Running Tests
+
+Run all tests from the project root:
+
+```bash
+./tests/run_tests.sh
+```
+
+### Test Coverage
+
+The test suite covers:
+- **Profile Creation** - Testing save profile functionality
+- **Profile Switching** - Testing profile switching and symlink creation
+- **Profile Listing** - Testing profile listing commands
+- **Profile Deletion** - Testing profile deletion
+- **Current Profile Detection** - Testing detection of active profile
+- **First-Time Setup** - Testing initial backup and setup
+- **OAuth/API Key Detection** - Testing authentication type detection
+- **Auth Token Clearing** - Testing OAuth token removal for API key profiles
+
+### Test Isolation
+
+All tests run in a sandboxed environment using temporary directories. Your actual Claude configuration files are never touched during testing.
+
+---
+
 ## 🤝 Contributing
 
 Issues and pull requests are welcome!
