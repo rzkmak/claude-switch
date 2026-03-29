@@ -35,17 +35,15 @@ This will install `claude-switch` to `~/.local/bin/` and make it available syste
 
 ### Setup Your Accounts
 
-### Setup Your Accounts
-
 The easiest way to set up profiles is using the interactive `new` command:
 
 ```bash
 # 1. Create your first profile (e.g., Anthropic)
-csw new anthropic
+csw new
 # Follow the interactive prompts to log in
 
 # 2. Create your second profile (e.g., z.ai)
-csw new z.ai
+csw new
 # Follow the interactive prompts to set your API key
 ```
 
@@ -64,7 +62,7 @@ csw list              # List all accounts
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `new [name]` | Create a new profile interactively | `csw new anthropic` |
+| `new` | Create a new profile interactively | `csw new` |
 | `save <name>` | Save current config as profile | `csw save anthropic` |
 | `use <name>` | Use a different profile | `csw use z.ai` |
 | `list` | List all profiles | `csw list` |
@@ -92,38 +90,38 @@ When you run the script for the first time, it will:
 
 ### Configuring Multiple Accounts
 
-### Configuring Multiple Accounts
-
 Use the `new` command for a guided setup:
 
 #### Example: Anthropic Account
 
 ```bash
-csw new anthropic
+csw new
 ```
 
 Select "OAuth" when prompted, then follow the instructions to:
 1. Run `claude` to open the interface
 2. Use the `/login` command
-3. Save the profile
+3. Enter a profile name (e.g., "anthropic")
+4. Save the profile
 
 #### Example: z.ai Account
 
 ```bash
-csw new z.ai
+csw new
 ```
 
 Select "API Key" when prompted, then follow the instructions to:
 1. Get your API key
 2. Create `~/.claude/settings.json`
-3. Save the profile
+3. Enter a profile name (e.g., "z.ai")
+4. Save the profile
 
 ### Complete Workflow Example
 
 ```bash
 # Create profiles interactively
-csw new anthropic
-csw new z.ai
+csw new
+csw new
 
 # Switch between accounts anytime
 csw use anthropic
@@ -308,7 +306,7 @@ If you're still being prompted to log in after switching to an API key profile (
 1. **Delete and recreate the profile** - This ensures a clean setup:
    ```bash
    csw delete z.ai
-   csw new z.ai
+   csw new
    ```
 
 2. **Verify the profile is active**:
